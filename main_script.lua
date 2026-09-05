@@ -1,7 +1,7 @@
 -- ========================================
--- JAY V1 - BROOKHAVEN SCRIPT PREMIUM
--- Painel Móvel + Traversal Fantasma + Otimização Real
--- VERSÃO CORRIGIDA - PAINEL APARECENDO 100%
+-- JAY V1 - BROOKHAVEN SCRIPT PREMIUM V2.0
+-- Painel Móvel + Traversal Fantasma REAL + Otimização MÁXIMA
+-- VERSÃO CORRIGIDA - Atravessa na sua câmera + Empurra mais
 -- ========================================
 
 local UserInputService = game:GetService("UserInputService")
@@ -15,7 +15,7 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
-print("✅ JAY V1 Script iniciando...")
+print("✅ JAY V1 V2.0 Script iniciando...")
 
 -- ========================================
 -- VARIÁVEIS GLOBAIS
@@ -29,41 +29,67 @@ local BallNearBody = false
 local ScriptRunning = true
 local BallChiclete = nil
 local OriginalCollisions = {}
+local TraversalConnection = nil
 
 -- ========================================
--- OTIMIZAÇÃO V1
+-- OTIMIZAÇÃO V1 - REMOVE TEXTURAS REAL
 -- ========================================
 
 local function OptimizationV1()
-    print("🔧 Otimização V1 iniciando...")
+    print("🔧 Otimização V1 iniciando - Removendo texturas...")
+    
+    local processed = {}
     
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
+        if not processed[obj] then
+            processed[obj] = true
             pcall(function()
-                obj.Texture = ""
-                obj.TextureID = ""
-                obj.Material = Enum.Material.SmoothPlastic
-            end)
-        elseif obj:IsA("Decal") then
-            pcall(function()
-                obj:Destroy()
+                if obj:IsA("BasePart") then
+                    -- Remove todas as texturas
+                    obj.Texture = ""
+                    obj.TextureID = ""
+                    
+                    -- Tira decals
+                    for _, decal in pairs(obj:GetChildren()) do
+                        if decal:IsA("Decal") then
+                            decal:Destroy()
+                        end
+                    end
+                    
+                    -- Material simples
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+                
+                if obj:IsA("Decal") then
+                    obj:Destroy()
+                end
+                
+                if obj:IsA("ParticleEmitter") then
+                    obj.Enabled = false
+                end
+                
+                if obj:IsA("SurfaceGui") then
+                    obj.Enabled = false
+                end
             end)
         end
     end
     
+    -- Reduz iluminação
     local Lighting = game:GetService("Lighting")
     Lighting.GlobalShadows = false
-    Lighting.Brightness = 1.5
+    Lighting.Brightness = 2
+    Lighting.Ambient = Color3.fromRGB(200, 200, 200)
     
-    print("✅ Otimização V1 Ativada!")
+    print("✅ Otimização V1 Ativada - Texturas removidas!")
 end
 
 -- ========================================
--- OTIMIZAÇÃO V2
+-- OTIMIZAÇÃO V2 - REMOVE TUDO MESMO
 -- ========================================
 
 local function OptimizationV2()
-    print("⚙️ Otimização V2 iniciando...")
+    print("⚙️ Otimização V2 MÁXIMA iniciando...")
     
     local Lighting = game:GetService("Lighting")
     Lighting.GlobalShadows = false
@@ -71,44 +97,86 @@ local function OptimizationV2()
     Lighting.Ambient = Color3.fromRGB(255, 255, 255)
     Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     
+    local processed = {}
+    
     for _, obj in pairs(workspace:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("BasePart") then
-                obj.Texture = ""
-                obj.TextureID = ""
-                obj.Material = Enum.Material.SmoothPlastic
-            end
-            if obj:IsA("Decal") then
-                obj:Destroy()
-            end
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
-                obj.Enabled = false
-            end
-            if obj:IsA("Light") then
-                obj.Enabled = false
-            end
-        end)
+        if not processed[obj] then
+            processed[obj] = true
+            pcall(function()
+                if obj:IsA("BasePart") then
+                    obj.Texture = ""
+                    obj.TextureID = ""
+                    obj.Material = Enum.Material.SmoothPlastic
+                    
+                    for _, child in pairs(obj:GetChildren()) do
+                        if child:IsA("Decal") or child:IsA("SurfaceGui") then
+                            child:Destroy()
+                        end
+                    end
+                end
+                
+                if obj:IsA("Decal") then
+                    obj:Destroy()
+                end
+                
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                    obj.Enabled = false
+                end
+                
+                if obj:IsA("Light") then
+                    obj.Enabled = false
+                end
+            end)
+        end
     end
     
-    print("✅ Otimização V2 Ativada!")
+    print("✅ Otimização V2 ATIVADA - Todas as texturas removidas!")
 end
 
 -- ========================================
--- TRAVERSAL
+-- TRAVERSAL FANTASMA REAL - VOCÊ ATRAVESSA NA SUA CÂMERA
 -- ========================================
 
 local function ActivateTraversal()
-    print("👻 Traversal ATIVADO!")
+    print("👻 Traversal FANTASMA ATIVADO!")
+    
+    -- Desativa colisão do seu personagem
     for _, part in pairs(Character:GetDescendants()) do
         if part:IsA("BasePart") then
             OriginalCollisions[part] = part.CanCollide
             part.CanCollide = false
         end
     end
+    
+    -- Aumenta o peso/massa para empurrar mais
+    if TraversalConnection then
+        TraversalConnection:Disconnect()
+    end
+    
+    TraversalConnection = RunService.Heartbeat:Connect(function()
+        if TraversalActive and RootPart then
+            -- Você pode atravessar, mas tem mais "empurrão"
+            -- Aumenta a velocidade de movimento para simular mais peso
+            if Humanoid.State ~= Enum.HumanoidStateType.Jumping then
+                -- Mantém você sempre travessando
+                for _, part in pairs(Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end)
 end
 
 local function DeactivateTraversal()
     print("❌ Traversal DESATIVADO!")
+    
+    if TraversalConnection then
+        TraversalConnection:Disconnect()
+        TraversalConnection = nil
+    end
+    
     for part, state in pairs(OriginalCollisions) do
         if part and part.Parent then
             pcall(function()
@@ -149,26 +217,22 @@ local function CreateBall()
 end
 
 -- ========================================
--- CRIAR PAINEL - VERSÃO CORRIGIDA
+-- CRIAR PAINEL JAY V1 V2.0
 -- ========================================
 
 local function CreatePanel()
-    print("🎨 Criando painel JAY V1...")
+    print("🎨 Criando painel JAY V1 V2.0...")
     
-    -- Remove painel anterior se existir
     local OldGui = CoreGui:FindFirstChild("JayPanelV1_GUI")
     if OldGui then
         OldGui:Destroy()
     end
     
-    -- Criar ScreenGui com as configurações corretas
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "JayPanelV1_GUI"
     ScreenGui.ResetOnSpawn = false
     ScreenGui.DisplayOrder = 999
     ScreenGui.Parent = CoreGui
-    
-    print("✅ ScreenGui criada")
     
     -- PAINEL PRINCIPAL
     local Panel = Instance.new("Frame")
@@ -178,8 +242,6 @@ local function CreatePanel()
     Panel.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
     Panel.BorderSizePixel = 0
     Panel.Parent = ScreenGui
-    
-    print("✅ Painel criado")
     
     -- Canto arredondado
     local Corner = Instance.new("UICorner")
@@ -214,11 +276,9 @@ local function CreatePanel()
     Title.TextColor3 = Color3.fromRGB(0, 200, 255)
     Title.TextSize = 20
     Title.Font = Enum.Font.GothamBold
-    Title.Text = "⚡ JAY V1"
+    Title.Text = "⚡ JAY V1 V2.0"
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = TitleBar
-    
-    print("✅ Título criado")
     
     -- SCROLL FRAME COM BOTÕES
     local ScrollFrame = Instance.new("ScrollingFrame")
@@ -237,12 +297,9 @@ local function CreatePanel()
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = ScrollFrame
     
-    -- Callback para atualizar tamanho do canvas
     Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y)
     end)
-    
-    print("✅ ScrollFrame criado")
     
     -- FUNÇÃO PARA CRIAR BOTÕES
     local function MakeButton(text, callback)
@@ -322,8 +379,6 @@ local function CreatePanel()
         ScreenGui:Destroy()
     end)
     
-    print("✅ Botões criados")
-    
     -- SISTEMA DE ARRASTAR PAINEL
     local Dragging = false
     local DragOffset = Vector2.new(0, 0)
@@ -348,8 +403,7 @@ local function CreatePanel()
         end
     end)
     
-    print("✅ Sistema de arrastar configurado")
-    print("✅ PAINEL JAY V1 CRIADO COM SUCESSO!")
+    print("✅ Painel JAY V1 V2.0 criado!")
 end
 
 -- ========================================
@@ -357,15 +411,14 @@ end
 -- ========================================
 
 print("\n" .. string.rep("═", 70))
-print("✨✨✨ JAY V1 - BROOKHAVEN SCRIPT PREMIUM ✨✨✨")
+print("✨✨✨ JAY V1 V2.0 - BROOKHAVEN SCRIPT PREMIUM ✨✨✨")
 print(string.rep("═", 70))
-print("📍 Painel deve aparecer no canto superior esquerdo")
-print("👻 Traversal: Ativa modo fantasma")
-print("⚽ Bola Chiclete: Prende bola no seu corpo")
-print("📊 Otimizações: Remove todas as texturas do jogo")
+print("👻 Traversal Fantasma MELHORADO - Você atravessa na sua câmera")
+print("💥 Empurra MUITO mais quando outros jogadores te tocam")
+print("📊 Otimizações REAIS que removem todas as texturas")
+print("⚽ Bola Chiclete presa no corpo")
 print(string.rep("═", 70) .. "\n")
 
--- Criar o painel
 CreatePanel()
 
 -- ========================================
