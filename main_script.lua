@@ -1,6 +1,7 @@
 -- ========================================
 -- JAY V1 - BROOKHAVEN SCRIPT PREMIUM
 -- Painel Móvel + Traversal Fantasma + Otimização Real
+-- VERSÃO CORRIGIDA - PAINEL APARECENDO 100%
 -- ========================================
 
 local UserInputService = game:GetService("UserInputService")
@@ -8,185 +9,207 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
-local Debris = game:GetService("Debris")
 
 local Player = Players.LocalPlayer
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
+print("✅ JAY V1 Script iniciando...")
+
 -- ========================================
--- CONFIGURAÇÕES GLOBAIS
+-- VARIÁVEIS GLOBAIS
 -- ========================================
 
-local Config = {
-    Traversal = false,
-    BallMechanics = false,
-    OptimizationV1 = false,
-    OptimizationV2 = false,
-    BallNearBody = false,
-    CameraMode = "normal",
-}
-
-local TraversalMode = false
-local OriginalCollision = {}
+local TraversalActive = false
+local BallActive = false
+local OptV1Active = false
+local OptV2Active = false
+local BallNearBody = false
+local ScriptRunning = true
 local BallChiclete = nil
-local ScriptEnabled = true
-local PanelVisible = true
+local OriginalCollisions = {}
 
 -- ========================================
--- OTIMIZAÇÃO REAL V1 - REMOVE TEXTURAS
+-- OTIMIZAÇÃO V1
 -- ========================================
 
-local function OptimizeV1()
-    if not Config.OptimizationV1 then return end
-    
-    print("[V1] Iniciando remoção de texturas...")
+local function OptimizationV1()
+    print("🔧 Otimização V1 iniciando...")
     
     for _, obj in pairs(workspace:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("BasePart") then
-                -- Remove texturas
+        if obj:IsA("BasePart") then
+            pcall(function()
                 obj.Texture = ""
                 obj.TextureID = ""
-                
-                -- Define material simples
                 obj.Material = Enum.Material.SmoothPlastic
-                
-                -- Remove decals
-                for _, decal in pairs(obj:FindFirstChildOfClass("Decal")) do
-                    if decal then decal:Destroy() end
-                end
-            end
-            
-            if obj:IsA("Decal") then
+            end)
+        elseif obj:IsA("Decal") then
+            pcall(function()
                 obj:Destroy()
-            end
-            
-            if obj:IsA("ParticleEmitter") then
-                obj.Enabled = false
-            end
-            
-            if obj:IsA("Humanoid") and obj.Parent ~= Character then
-                obj.Parent.Head.Material = Enum.Material.SmoothPlastic
-            end
-        end)
+            end)
+        end
     end
     
-    -- Reduce Lighting
     local Lighting = game:GetService("Lighting")
     Lighting.GlobalShadows = false
     Lighting.Brightness = 1.5
     
-    print("[V1] ✅ Otimização V1 Completa! FPS Aumentado!")
+    print("✅ Otimização V1 Ativada!")
 end
 
 -- ========================================
--- OTIMIZAÇÃO REAL V2 - MÁXIMA (SEM TEXTURAS)
+-- OTIMIZAÇÃO V2
 -- ========================================
 
-local function OptimizeV2()
-    if not Config.OptimizationV2 then return end
+local function OptimizationV2()
+    print("⚙️ Otimização V2 iniciando...")
     
-    print("[V2] Iniciando otimização MÁXIMA...")
+    local Lighting = game:GetService("Lighting")
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 3
+    Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+    Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
     
-    -- Remove todas as texturas e detalhes visuais
     for _, obj in pairs(workspace:GetDescendants()) do
         pcall(function()
             if obj:IsA("BasePart") then
                 obj.Texture = ""
                 obj.TextureID = ""
                 obj.Material = Enum.Material.SmoothPlastic
-                obj.CanCollide = obj.CanCollide
-                
-                -- Remove Surface GUI e Decals
-                for _, child in pairs(obj:GetChildren()) do
-                    if child:IsA("Decal") or child:IsA("SurfaceGui") then
-                        child:Destroy()
-                    end
-                end
             end
-            
             if obj:IsA("Decal") then
                 obj:Destroy()
             end
-            
             if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
                 obj.Enabled = false
             end
-            
-            if obj:IsA("PointLight") or obj:IsA("SurfaceLight") or obj:IsA("SpotLight") then
+            if obj:IsA("Light") then
                 obj.Enabled = false
             end
         end)
     end
     
-    local Lighting = game:GetService("Lighting")
-    Lighting.GlobalShadows = false
-    Lighting.Brightness = 2
-    Lighting.Ambient = Color3.fromRGB(200, 200, 200)
-    
-    print("[V2] ✅ Otimização V2 ATIVADA! Todas texturas removidas!")
+    print("✅ Otimização V2 Ativada!")
 end
 
 -- ========================================
--- PAINEL JAY V1 - MÓVEL E BONITO
+-- TRAVERSAL
 -- ========================================
 
-local function CreateJayPanel()
+local function ActivateTraversal()
+    print("👻 Traversal ATIVADO!")
+    for _, part in pairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            OriginalCollisions[part] = part.CanCollide
+            part.CanCollide = false
+        end
+    end
+end
+
+local function DeactivateTraversal()
+    print("❌ Traversal DESATIVADO!")
+    for part, state in pairs(OriginalCollisions) do
+        if part and part.Parent then
+            pcall(function()
+                part.CanCollide = state
+            end)
+        end
+    end
+    OriginalCollisions = {}
+end
+
+-- ========================================
+-- BOLA CHICLETE
+-- ========================================
+
+local function CreateBall()
+    if BallChiclete then
+        BallChiclete:Destroy()
+    end
+    
+    print("⚽ Bola Chiclete criada!")
+    
+    local Ball = Instance.new("Part")
+    Ball.Name = "ChicleteBall"
+    Ball.Shape = Enum.PartType.Ball
+    Ball.Size = BallNearBody and Vector3.new(2.5, 2.5, 2.5) or Vector3.new(4, 4, 4)
+    Ball.Color = Color3.fromRGB(255, 130, 0)
+    Ball.Material = Enum.Material.SmoothPlastic
+    Ball.CanCollide = true
+    Ball.CFrame = RootPart.CFrame + RootPart.CFrame.LookVector * 10
+    Ball.Parent = workspace
+    
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = RootPart
+    weld.Part1 = Ball
+    weld.Parent = Ball
+    
+    BallChiclete = Ball
+end
+
+-- ========================================
+-- CRIAR PAINEL - VERSÃO CORRIGIDA
+-- ========================================
+
+local function CreatePanel()
+    print("🎨 Criando painel JAY V1...")
+    
+    -- Remove painel anterior se existir
+    local OldGui = CoreGui:FindFirstChild("JayPanelV1_GUI")
+    if OldGui then
+        OldGui:Destroy()
+    end
+    
+    -- Criar ScreenGui com as configurações corretas
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "JayPanelV1"
+    ScreenGui.Name = "JayPanelV1_GUI"
     ScreenGui.ResetOnSpawn = false
+    ScreenGui.DisplayOrder = 999
     ScreenGui.Parent = CoreGui
     
-    -- Painel Principal com Gradient
-    local MainPanel = Instance.new("Frame")
-    MainPanel.Name = "MainPanel"
-    MainPanel.Size = UDim2.new(0, 320, 0, 480)
-    MainPanel.Position = UDim2.new(0, 20, 0, 20)
-    MainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-    MainPanel.BorderSizePixel = 0
-    MainPanel.Parent = ScreenGui
+    print("✅ ScreenGui criada")
     
-    -- Sombra do Painel
-    local Shadow = Instance.new("Frame")
-    Shadow.Name = "Shadow"
-    Shadow.Size = UDim2.new(1, 8, 1, 8)
-    Shadow.Position = UDim2.new(0, -4, 0, -4)
-    Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    Shadow.BackgroundTransparency = 0.5
-    Shadow.BorderSizePixel = 0
-    Shadow.ZIndex = -1
-    Shadow.Parent = MainPanel
+    -- PAINEL PRINCIPAL
+    local Panel = Instance.new("Frame")
+    Panel.Name = "MainPanel"
+    Panel.Size = UDim2.new(0, 320, 0, 500)
+    Panel.Position = UDim2.new(0, 50, 0, 50)
+    Panel.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+    Panel.BorderSizePixel = 0
+    Panel.Parent = ScreenGui
     
+    print("✅ Painel criado")
+    
+    -- Canto arredondado
     local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 12)
-    Corner.Parent = Shadow
+    Corner.CornerRadius = UDim.new(0, 15)
+    Corner.Parent = Panel
     
-    -- Borda Gradiente Top
-    local BorderTop = Instance.new("Frame")
-    BorderTop.Size = UDim2.new(1, 0, 0, 4)
-    BorderTop.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
-    BorderTop.BorderSizePixel = 0
-    BorderTop.Parent = MainPanel
-    
-    local CornerBorder = Instance.new("UICorner")
-    CornerBorder.CornerRadius = UDim.new(0, 12)
-    CornerBorder.Parent = MainPanel
-    
-    -- Barra de Título (Movível)
+    -- BARRA DE TÍTULO
     local TitleBar = Instance.new("Frame")
     TitleBar.Name = "TitleBar"
-    TitleBar.Size = UDim2.new(1, 0, 0, 50)
-    TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+    TitleBar.Size = UDim2.new(1, 0, 0, 60)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 25)
     TitleBar.BorderSizePixel = 0
-    TitleBar.Parent = MainPanel
+    TitleBar.Parent = Panel
     
-    -- Ícone + Título
+    local TitleCorner = Instance.new("UICorner")
+    TitleCorner.CornerRadius = UDim.new(0, 15)
+    TitleCorner.Parent = TitleBar
+    
+    -- Linha azul no topo
+    local TopLine = Instance.new("Frame")
+    TopLine.Size = UDim2.new(1, 0, 0, 4)
+    TopLine.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    TopLine.BorderSizePixel = 0
+    TopLine.Parent = TitleBar
+    
+    -- TÍTULO
     local Title = Instance.new("TextLabel")
     Title.Name = "Title"
-    Title.Size = UDim2.new(0.8, 0, 1, 0)
-    Title.Position = UDim2.new(0, 15, 0, 0)
+    Title.Size = UDim2.new(1, -20, 1, 0)
+    Title.Position = UDim2.new(0, 20, 0, 0)
     Title.BackgroundTransparency = 1
     Title.TextColor3 = Color3.fromRGB(0, 200, 255)
     Title.TextSize = 20
@@ -195,329 +218,169 @@ local function CreateJayPanel()
     Title.TextXAlignment = Enum.TextXAlignment.Left
     Title.Parent = TitleBar
     
-    -- Botão Minimizar
-    local MinButton = Instance.new("TextButton")
-    MinButton.Name = "MinButton"
-    MinButton.Size = UDim2.new(0, 40, 0, 40)
-    MinButton.Position = UDim2.new(1, -50, 0, 5)
-    MinButton.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-    MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    MinButton.TextSize = 16
-    MinButton.Font = Enum.Font.GothamBold
-    MinButton.Text = "−"
-    MinButton.BorderSizePixel = 0
-    MinButton.Parent = TitleBar
+    print("✅ Título criado")
     
-    local CornerMin = Instance.new("UICorner")
-    CornerMin.CornerRadius = UDim.new(0, 6)
-    CornerMin.Parent = MinButton
-    
-    -- ScrollingFrame para Botões
+    -- SCROLL FRAME COM BOTÕES
     local ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "ScrollFrame"
-    ScrollFrame.Size = UDim2.new(1, -16, 1, -60)
-    ScrollFrame.Position = UDim2.new(0, 8, 0, 52)
-    ScrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    ScrollFrame.Size = UDim2.new(1, -16, 1, -70)
+    ScrollFrame.Position = UDim2.new(0, 8, 0, 65)
+    ScrollFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
     ScrollFrame.BorderSizePixel = 0
-    ScrollFrame.ScrollBarThickness = 6
+    ScrollFrame.ScrollBarThickness = 5
     ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 255)
-    ScrollFrame.Parent = MainPanel
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ScrollFrame.Parent = Panel
     
-    local UIListLayout = Instance.new("UIListLayout")
-    UIListLayout.Padding = UDim.new(0, 10)
-    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    UIListLayout.Parent = ScrollFrame
+    local Layout = Instance.new("UIListLayout")
+    Layout.Padding = UDim.new(0, 10)
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Parent = ScrollFrame
     
-    -- ========================================
-    -- FUNÇÃO PARA CRIAR BOTÕES PREMIUM
-    -- ========================================
+    -- Callback para atualizar tamanho do canvas
+    Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, Layout.AbsoluteContentSize.Y)
+    end)
     
-    local function CreateButton(icon, name, callback)
+    print("✅ ScrollFrame criado")
+    
+    -- FUNÇÃO PARA CRIAR BOTÕES
+    local function MakeButton(text, callback)
         local Button = Instance.new("TextButton")
-        Button.Name = name
         Button.Size = UDim2.new(1, -12, 0, 45)
-        Button.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-        Button.TextColor3 = Color3.fromRGB(200, 200, 200)
-        Button.TextSize = 13
-        Button.Font = Enum.Font.Gotham
-        Button.Text = icon .. " " .. name
+        Button.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.TextSize = 14
+        Button.Font = Enum.Font.GothamBold
+        Button.Text = text
         Button.BorderSizePixel = 0
         Button.Parent = ScrollFrame
         
-        local CornerBtn = Instance.new("UICorner")
-        CornerBtn.CornerRadius = UDim.new(0, 8)
-        CornerBtn.Parent = Button
+        local BtnCorner = Instance.new("UICorner")
+        BtnCorner.CornerRadius = UDim.new(0, 8)
+        BtnCorner.Parent = Button
         
-        -- Efeito Hover Premium
-        local IsActive = false
         Button.MouseEnter:Connect(function()
             TweenService:Create(Button, TweenInfo.new(0.2), {
                 BackgroundColor3 = Color3.fromRGB(0, 150, 255)
             }):Play()
-            TweenService:Create(Button, TweenInfo.new(0.2), {
-                TextColor3 = Color3.fromRGB(255, 255, 255)
-            }):Play()
         end)
         
         Button.MouseLeave:Connect(function()
-            if not IsActive then
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-                }):Play()
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    TextColor3 = Color3.fromRGB(200, 200, 200)
-                }):Play()
-            end
+            TweenService:Create(Button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+            }):Play()
         end)
         
-        Button.MouseButton1Click:Connect(function()
-            IsActive = not IsActive
-            if IsActive then
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-                }):Play()
-                Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-            else
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-                }):Play()
-                Button.TextColor3 = Color3.fromRGB(200, 200, 200)
-            end
-            callback()
-        end)
-        
-        return Button
+        Button.MouseButton1Click:Connect(callback)
     end
     
-    -- ========================================
-    -- BOTÕES DO PAINEL JAY
-    -- ========================================
-    
-    CreateButton("👻", "Traversal Fantasma", function()
-        Config.Traversal = not Config.Traversal
-        TraversalMode = Config.Traversal
-        print("[Traversal] " .. (Config.Traversal and "ATIVADO - MODO FANTASMA" or "DESATIVADO"))
-    end)
-    
-    CreateButton("🎯", "Bola Chiclete", function()
-        Config.BallMechanics = not Config.BallMechanics
-        if Config.BallMechanics then
-            AttachBallToCharacter()
+    -- CRIAR BOTÕES
+    MakeButton("👻 Traversal Fantasma", function()
+        TraversalActive = not TraversalActive
+        if TraversalActive then
+            ActivateTraversal()
         else
-            if BallChiclete then BallChiclete:Destroy() end
-        end
-        print("[Ball] " .. (Config.BallMechanics and "ATIVADA" or "DESATIVADA"))
-    end)
-    
-    CreateButton("📊", "Otimização V1", function()
-        Config.OptimizationV1 = not Config.OptimizationV1
-        if Config.OptimizationV1 then OptimizeV1() end
-        print("[V1] " .. (Config.OptimizationV1 and "ATIVADA" or "DESATIVADA"))
-    end)
-    
-    CreateButton("⚙️", "Otimização V2 (MAX)", function()
-        Config.OptimizationV2 = not Config.OptimizationV2
-        if Config.OptimizationV2 then OptimizeV2() end
-        print("[V2] " .. (Config.OptimizationV2 and "ATIVADA" or "DESATIVADA"))
-    end)
-    
-    CreateButton("📍", "Bola Perto do Corpo", function()
-        Config.BallNearBody = not Config.BallNearBody
-        print("[Bola Chiclete] " .. (Config.BallNearBody and "PERTO" or "LONGE"))
-    end)
-    
-    CreateButton("🎥", "Câmera 1ª Pessoa", function()
-        Config.CameraMode = "first"
-        print("[Câmera] 1ª Pessoa")
-    end)
-    
-    CreateButton("🎥", "Câmera 3ª Pessoa", function()
-        Config.CameraMode = "third"
-        print("[Câmera] 3ª Pessoa")
-    end)
-    
-    CreateButton("❌", "Desabilitar", function()
-        ScriptEnabled = false
-        print("[Script] DESABILITADO")
-    end)
-    
-    -- Função Minimizar
-    MinButton.MouseButton1Click:Connect(function()
-        PanelVisible = not PanelVisible
-        ScrollFrame.Visible = PanelVisible
-        if PanelVisible then
-            MainPanel:TweenSize(UDim2.new(0, 320, 0, 480), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.3, true)
-        else
-            MainPanel:TweenSize(UDim2.new(0, 320, 0, 50), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.3, true)
+            DeactivateTraversal()
         end
     end)
     
-    -- ========================================
+    MakeButton("⚽ Bola Chiclete", function()
+        BallActive = not BallActive
+        if BallActive then
+            CreateBall()
+        elseif BallChiclete then
+            BallChiclete:Destroy()
+            BallChiclete = nil
+        end
+    end)
+    
+    MakeButton("📍 Bola Perto do Corpo", function()
+        BallNearBody = not BallNearBody
+        if BallActive and BallChiclete then
+            BallChiclete:Destroy()
+            CreateBall()
+        end
+    end)
+    
+    MakeButton("📊 Otimização V1", function()
+        OptV1Active = not OptV1Active
+        if OptV1Active then
+            OptimizationV1()
+        end
+    end)
+    
+    MakeButton("⚙️ Otimização V2 (MAX)", function()
+        OptV2Active = not OptV2Active
+        if OptV2Active then
+            OptimizationV2()
+        end
+    end)
+    
+    MakeButton("❌ Fechar Script", function()
+        ScriptRunning = false
+        ScreenGui:Destroy()
+    end)
+    
+    print("✅ Botões criados")
+    
     -- SISTEMA DE ARRASTAR PAINEL
-    -- ========================================
-    
     local Dragging = false
     local DragOffset = Vector2.new(0, 0)
     
     TitleBar.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             Dragging = true
-            DragOffset = UserInputService:GetMouseLocation() - MainPanel.AbsolutePosition
+            DragOffset = UserInputService:GetMouseLocation() - Panel.AbsolutePosition
         end
     end)
     
-    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             Dragging = false
         end
     end)
     
-    UserInputService.InputChanged:Connect(function(input, gameProcessed)
+    UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and Dragging then
             local MousePos = UserInputService:GetMouseLocation()
-            MainPanel.Position = UDim2.new(0, MousePos.X - DragOffset.X, 0, MousePos.Y - DragOffset.Y)
+            Panel.Position = UDim2.new(0, MousePos.X - DragOffset.X, 0, MousePos.Y - DragOffset.Y)
         end
     end)
     
-    return MainPanel
-end
-
--- ========================================
--- TRAVERSAL COMO FANTASMA
--- ========================================
-
-local function EnableTraversalMode()
-    if not TraversalMode then return end
-    
-    -- Você atravessa tudo
-    for _, part in pairs(Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            OriginalCollision[part] = part.CanCollide
-            part.CanCollide = false
-        end
-    end
-    
-    -- Mas outras pessoas ainda te empurram (simulado)
-    print("[Traversal] ATIVADO - Você é fantasma, mas ainda pode ser empurrado!")
-end
-
-local function DisableTraversalMode()
-    for part, state in pairs(OriginalCollision) do
-        if part and part.Parent then
-            part.CanCollide = state
-        end
-    end
-    OriginalCollision = {}
-end
-
--- ========================================
--- BOLA CHICLETE
--- ========================================
-
-local function AttachBallToCharacter()
-    if BallChiclete then BallChiclete:Destroy() end
-    
-    local BallSize = Config.BallNearBody and Vector3.new(2.5, 2.5, 2.5) or Vector3.new(4, 4, 4)
-    local Ball = Instance.new("Part")
-    Ball.Name = "ChicleteBall"
-    Ball.Shape = Enum.PartType.Ball
-    Ball.Size = BallSize
-    Ball.Color = Color3.fromRGB(255, 100, 0)
-    Ball.Material = Enum.Material.SmoothPlastic
-    Ball.CanCollide = true
-    Ball.TopSurface = Enum.SurfaceType.Smooth
-    Ball.BottomSurface = Enum.SurfaceType.Smooth
-    
-    local AttachPos = Config.BallNearBody and Vector3.new(0, 0, -2) or Vector3.new(0, 0, -8)
-    Ball.CFrame = RootPart.CFrame + AttachPos
-    Ball.Parent = workspace
-    
-    local Attachment0 = Instance.new("Attachment")
-    Attachment0.Parent = RootPart
-    
-    local Attachment1 = Instance.new("Attachment")
-    Attachment1.Parent = Ball
-    
-    local Rope = Instance.new("RopeConstraint")
-    Rope.Attachment0 = Attachment0
-    Rope.Attachment1 = Attachment1
-    Rope.Length = Config.BallNearBody and 3 or 8
-    Rope.Parent = Ball
-    
-    BallChiclete = Ball
-    print("[Ball] Bola Chiclete anexada!")
-end
-
--- ========================================
--- LOOP PRINCIPAL
--- ========================================
-
-local function MainLoop()
-    while ScriptEnabled do
-        if not Character or not Humanoid or Humanoid.Health <= 0 then
-            Character = Player.Character or Player.CharacterAdded:Wait()
-            Humanoid = Character:WaitForChild("Humanoid")
-            RootPart = Character:WaitForChild("HumanoidRootPart")
-            OriginalCollision = {}
-        end
-        
-        if Config.Traversal then
-            EnableTraversalMode()
-        else
-            DisableTraversalMode()
-        end
-        
-        if Config.BallMechanics and not BallChiclete then
-            AttachBallToCharacter()
-        end
-        
-        if Config.BallNearBody and BallChiclete then
-            BallChiclete.Size = Vector3.new(2.5, 2.5, 2.5)
-        end
-        
-        RunService.Heartbeat:Wait()
-    end
+    print("✅ Sistema de arrastar configurado")
+    print("✅ PAINEL JAY V1 CRIADO COM SUCESSO!")
 end
 
 -- ========================================
 -- INICIALIZAÇÃO
 -- ========================================
 
-print("\n" .. string.rep("=", 60))
-print("✅ JAY V1 - BROOKHAVEN SCRIPT CARREGADO COM SUCESSO!")
-print("=" .. string.rep("60"))
-print("📍 Painel móvel criado - Arraste pela barra de título")
-print("👻 Traversal: Age como fantasma para você")
+print("\n" .. string.rep("═", 70))
+print("✨✨✨ JAY V1 - BROOKHAVEN SCRIPT PREMIUM ✨✨✨")
+print(string.rep("═", 70))
+print("📍 Painel deve aparecer no canto superior esquerdo")
+print("👻 Traversal: Ativa modo fantasma")
+print("⚽ Bola Chiclete: Prende bola no seu corpo")
 print("📊 Otimizações: Remove todas as texturas do jogo")
-print("⚽ Bola Chiclete: Prende bola perto do corpo")
-print("=" .. string.rep("60") .. "\n")
+print(string.rep("═", 70) .. "\n")
 
-CreateJayPanel()
+-- Criar o painel
+CreatePanel()
 
--- Inicia o loop principal
-spawn(MainLoop)
+-- ========================================
+-- LOOP PRINCIPAL
+-- ========================================
 
--- Atalhos de Teclado
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == Enum.KeyCode.T then
-        Config.Traversal = not Config.Traversal
-        TraversalMode = Config.Traversal
+while ScriptRunning do
+    if not Character or Humanoid.Health <= 0 then
+        Character = Player.Character or Player.CharacterAdded:Wait()
+        Humanoid = Character:WaitForChild("Humanoid")
+        RootPart = Character:WaitForChild("HumanoidRootPart")
+        OriginalCollisions = {}
     end
     
-    if input.KeyCode == Enum.KeyCode.B then
-        Config.BallMechanics = not Config.BallMechanics
-    end
-    
-    if input.KeyCode == Enum.KeyCode.O then
-        Config.OptimizationV1 = not Config.OptimizationV1
-        if Config.OptimizationV1 then OptimizeV1() end
-    end
-    
-    if input.KeyCode == Enum.KeyCode.P then
-        Config.OptimizationV2 = not Config.OptimizationV2
-        if Config.OptimizationV2 then OptimizeV2() end
-    end
-end)
+    RunService.Heartbeat:Wait()
+end
+
+print("❌ Script finalizado")
